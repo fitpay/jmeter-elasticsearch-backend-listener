@@ -2,6 +2,9 @@ package io.github.delirius325.jmeter.backendlistener.elasticsearch;
 
 import com.google.gson.Gson;
 import org.apache.http.HttpHost;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.ssl.TrustStrategy;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.util.JMeterUtils;
@@ -9,10 +12,16 @@ import org.apache.jmeter.visualizers.backend.AbstractBackendListenerClient;
 import org.apache.jmeter.visualizers.backend.BackendListenerContext;
 import org.elasticsearch.client.Node;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.*;
+
+import javax.net.ssl.SSLContext;
 
 public class ElasticsearchBackendClient extends AbstractBackendListenerClient {
     private static final String BUILD_NUMBER        = "BuildNumber";
@@ -72,6 +81,22 @@ public class ElasticsearchBackendClient extends AbstractBackendListenerClient {
                         @Override
                         public void onFailure(Node node) {
                             throw new IllegalStateException();
+                        }
+                    })
+                    .setHttpClientConfigCallback(new HttpClientConfigCallback() {
+                        public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
+                            try {
+                                httpClientBuilder = httpClientBuilder.setSSLContext(new SSLContextBuilder().loadTrustMaterial(null, new TrustStrategy() {
+                                    public boolean isTrusted(X509Certificate[] arg0, String arg1) throws CertificateException {
+                                        return true;
+                                    }
+                                }).build());
+                            } catch (Exception e) {
+                                // TODO Auto-generated catch block
+                                e.printStackTrace();
+                            }
+                            
+                            return httpClientBuilder;
                         }
                     })
                     .setMaxRetryTimeoutMillis(60000)
